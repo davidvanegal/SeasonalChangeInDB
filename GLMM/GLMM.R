@@ -21,7 +21,12 @@ library(openxlsx)
 # -----------------------------------------------------------------------------
 
 raw <- read_excel("DataIAvH.xlsx") |>
-  mutate(season = factor(season, levels = c("Rainy", "Dry")))
+  mutate(season = factor(season, levels = c("Rainy", "Dry"))) |>
+  # Balanced paired design: keep only the sites sampled in both seasons
+  filter(n_distinct(season) == 2, .by = site)
+
+cat("Sites analysed:", n_distinct(raw$site),
+    "| site-season combinations:", nrow(distinct(raw, site, season)), "\n")
 
 # --- LEVEL 1: whole-community site × season table ---
 l1_data <- raw |>
@@ -309,7 +314,7 @@ make_l1_plot <- function(data, yvar, result, ylab, panel_label = NULL) {
   cld_df   <- result$cld_season |> dplyr::select(season, .group)
   letter_y <- data |>
     group_by(season) |>
-    summarise(y_pos = max(.data[[yvar]], na.rm = TRUE) * 0.58, .groups = "drop") |>
+    summarise(y_pos = max(.data[[yvar]], na.rm = TRUE) * 1.10, .groups = "drop") |>
     left_join(cld_df, by = "season")
   
   p <- ggplot(data, aes(x = season, y = .data[[yvar]], fill = season)) +
@@ -341,7 +346,7 @@ make_facet_plot <- function(data, response, group_var, result,
   letter_pos <- data |>
     dplyr::rename(grp = !!group_var, yv = !!response) |>
     group_by(grp, season) |>
-    summarise(y_pos = max(yv, na.rm = TRUE) * 0.58, .groups = "drop") |>
+    summarise(y_pos = max(yv, na.rm = TRUE) * 1.10, .groups = "drop") |>
     left_join(cld_df, by = c("grp", "season")) |>
     mutate(grp = factor(grp, levels = grp_lvls))
   
@@ -410,7 +415,7 @@ make_facet_gg <- function(data, response, group_var, result,
   letter_pos <- data |>
     dplyr::rename(grp = !!group_var, yv = !!response) |>
     group_by(grp, season) |>
-    summarise(y_pos = max(yv, na.rm = TRUE) * 0.58, .groups = "drop") |>
+    summarise(y_pos = max(yv, na.rm = TRUE) * 1.10, .groups = "drop") |>
     left_join(cld_df, by = c("grp", "season")) |>
     mutate(grp = factor(grp, levels = grp_lvls))
   

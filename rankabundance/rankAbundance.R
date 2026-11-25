@@ -15,7 +15,12 @@ library(ggpubr)
 # -----------------------------------------------------------------------------
 
 raw <- read_excel("DataIAvH.xlsx") |>
-  mutate(season = factor(season, levels = c("Rainy", "Dry")))
+  mutate(season = factor(season, levels = c("Rainy", "Dry"))) |>
+  # Balanced paired design: keep only the sites sampled in both seasons
+  filter(n_distinct(season) == 2, .by = site)
+
+cat("Sites analysed:", n_distinct(raw$site),
+    "| site-season combinations:", nrow(distinct(raw, site, season)), "\n")
 
 # Site x species matrix aggregated by season (one row per season)
 comm_season <- raw |>
@@ -113,7 +118,7 @@ plot_ra <- ggplot(ra_top15,
                      expand = expansion(mult = c(0.05, 0.35))) +
   scale_y_continuous("Proportional abundance",
                      labels = scales::number_format(accuracy = 1),
-                     expand = expansion(mult = c(0.05, 0.35)))+  # 35% de espacio arriba +
+                     expand = expansion(mult = c(0.05, 0.60)))+  # 60% de espacio arriba +
   facet_wrap(~ season,                                          # <-- agregado
              labeller = labeller(season = c(Rainy = "Rainy season",
                                             Dry = "Dry season"))) +
@@ -172,6 +177,17 @@ pielou_summary <- pielou_df |>
 cat("\n--- Pielou's evenness (J') per season ---\n")
 print(pielou_summary)
 
+# Pielou's evenness of the pooled assemblage of each season (H' / ln S on the season totals)
+pielou_pooled <- tibble(
+  season   = rownames(sp_mat_season),
+  shannon  = diversity(sp_mat_season, index = "shannon"),
+  richness = specnumber(sp_mat_season),
+  pielou   = shannon / log(richness)
+)
+
+cat("\n--- Pielou's evenness (J') of the pooled assemblage ---\n")
+print(pielou_pooled)
+
 plot_pielou <- ggplot(pielou_df,
                       aes(x = season, y = pielou, fill = season)) +
   geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.7) +
@@ -205,7 +221,10 @@ aic_Rainy <- as.data.frame(AIC(rad_Rainy)) |>
 
 aic_tbl <- bind_rows(aic_dry, aic_Rainy) |>
   rename(AIC = 3) |>
-  mutate(best = AIC == min(AIC), .by = season)
+  # The rainy-season AIC values sit in their own column (AIC(rad_Rainy)), so the best model
+  # is flagged on whichever of the two columns holds the value
+  mutate(best = coalesce(AIC, .data[["AIC(rad_Rainy)"]]) ==
+                min(coalesce(AIC, .data[["AIC(rad_Rainy)"]])), .by = season)
 
 openxlsx::addWorksheet(wb, "RadfitAIC")
 openxlsx::writeDataTable(wb, "RadfitAIC", aic_tbl,

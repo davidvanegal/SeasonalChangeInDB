@@ -18,7 +18,12 @@ library(ggpubr)
 # -----------------------------------------------------------------------------
 
 raw <- read_excel("DataIAvH.xlsx") |>
-  mutate(season = factor(season, levels = c("Rainy", "Dry")))
+  mutate(season = factor(season, levels = c("Rainy", "Dry"))) |>
+  # Balanced paired design: keep only the sites sampled in both seasons
+  filter(n_distinct(season) == 2, .by = site)
+
+cat("Sites analysed:", n_distinct(raw$site),
+    "| site-season combinations:", nrow(distinct(raw, site, season)), "\n")
 
 # Abundance vectors per season for iNEXT
 # Named numeric vector of species abundances, zeros excluded

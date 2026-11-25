@@ -15,7 +15,12 @@ library(indicspecies)
 # -----------------------------------------------------------------------------
 
 raw <- read_excel("DataIAvH.xlsx") |>
-  mutate(season = factor(season, levels = c("Rainy", "Dry")))
+  mutate(season = factor(season, levels = c("Rainy", "Dry"))) |>
+  # Balanced paired design: keep only the sites sampled in both seasons
+  filter(n_distinct(season) == 2, .by = site)
+
+cat("Sites analysed:", n_distinct(raw$site),
+    "| site-season combinations:", nrow(distinct(raw, site, season)), "\n")
 
 # Site x species matrix (rows = site x season, cols = species)
 comm_wide <- raw |>
